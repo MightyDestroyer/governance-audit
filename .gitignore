@@ -1,0 +1,5 @@
+bin/
+governance-audit
+governance-audit.exe
+*.test
+*.out
