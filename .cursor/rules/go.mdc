@@ -1,0 +1,42 @@
+---
+description: Go Coding Standards — Logging, Error Handling, Testing fuer MightyDestroyer Go-Projekte
+globs: "**/*.go"
+alwaysApply: false
+---
+
+# Go Standards
+
+## Logging
+
+- Structured JSON Logging mit `log/slog` (Standardbibliothek, keine externe Dependency).
+- Logger-Initialisierung zentral, per Dependency Injection an Handler/Services.
+- Log-Level: DEBUG, INFO, WARN, ERROR. Kein `fmt.Println` oder `log.Printf` in Produktion.
+
+```go
+slog.Info("request handled", "method", r.Method, "path", r.URL.Path, "status", status, "duration_ms", elapsed.Milliseconds())
+```
+
+## Error Handling
+
+- Errors wrappen mit Kontext: `fmt.Errorf("load config: %w", err)`.
+- Keine ignorierten Errors — jeder Error wird behandelt oder explizit weitergereicht.
+- Sentinel Errors fuer erwartbare Fehlerfaelle (`var ErrNotFound = errors.New(...)`).
+- HTTP-Handler: strukturierte JSON-Error-Responses, keine internen Details an den Client.
+
+## Testing
+
+- `go test ./... -v -race` als Standard.
+- Table-Driven Tests fuer Funktionen mit mehreren Eingabe-Varianten.
+- `testify` fuer Assertions (assert/require).
+- Test-Naming: `TestFunctionName_Scenario_ExpectedResult`.
+
+## Code-Organisation
+
+- Feature-basierte Packages, keine technischen Packages (`controllers/`, `models/`).
+- `cmd/` fuer Entrypoints, `internal/` fuer private Packages.
+- `Makefile` mit Targets: dev, build, test, lint, fmt, clean.
+
+## Linting
+
+- `golangci-lint run` mit Governance-Config (`.golangci.yml`).
+- Cyclomatic Complexity max 15.

@@ -1,0 +1,41 @@
+---
+description: MightyDestroyer Governance — Kernprinzipien, Naming, Commits, Eskalation. Gilt fuer alle Projekte.
+alwaysApply: true
+---
+
+# MightyDestroyer Governance
+
+Governance-Repo: https://github.com/MightyDestroyer/governance
+
+## Grundregeln
+
+- Mensch entscheidet — KI schlaegt vor. Kein Auto-Commit, kein Auto-Deploy, kein Auto-Merge.
+- Keine Architekturentscheidungen ohne Ruecksprache (neuer Service, neue Dependency, Schema-Aenderung).
+- Bei Unsicherheit oder Widerspruch: Stopp und Rueckfrage — keine Annahmen.
+- Aenderungen nur innerhalb des definierten Scope.
+
+## Naming
+
+- Dateien/Ordner: lowercase, kebab-case (Ausnahmen: README.md, CLAUDE.md, MEMORY.md, TASKS.md).
+- Branches: feature/beschreibung, fix/beschreibung, docs/beschreibung.
+
+## Commits
+
+- Klare, aussagekraeftige Commit-Messages.
+- Kein Commit ohne Doku-Update (README, ADRs, MEMORY.md falls betroffen).
+- Kein Commit mit Secrets, hardcodierten Werten oder TODO ohne Ticket.
+- Kein git push --force auf main/master ohne ausdrueckliche Bestaetigung.
+
+## Kontext-Hierarchie
+
+1. Governance-Repo (uebergreifende Prinzipien)
+2. CLAUDE.md im Projekt-Root (projektspezifische Anweisungen)
+3. MEMORY.md (persistenter Projektkontext)
+4. ADRs (Architektur-Entscheidungen)
+
+## Eskalation
+
+- Widerspruch zwischen Kontext-Quellen: Stopp, benennen, User entscheidet.
+- Aenderung ausserhalb Scope: Stopp, Scope-Erweiterung anfragen.
+- Security-Risiko erkannt: Sofort melden, keine Workarounds.
+- Architekturentscheidung noetig ohne ADR: Vorschlag machen, nicht eigenstaendig umsetzen.

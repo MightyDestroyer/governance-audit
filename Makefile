@@ -1,5 +1,5 @@
 BINARY := governance-audit
-MODULE := github.com/MightyDestroyer/Governance/tools/governance-audit
+MODULE := github.com/MightyDestroyer/governance-audit
 VERSION := 1.0.0
 
 GOFLAGS := -trimpath

@@ -1,8 +1,16 @@
 # Governance Audit CLI
 
-> Teil des [MightyDestroyer Governance](https://github.com/MightyDestroyer/Governance) Oekosystems.
+> Teil des [MightyDestroyer governance](https://github.com/MightyDestroyer/governance) Oekosystems.
 
 Prueft ein Repository gegen die MightyDestroyer Governance-Standards und berechnet einen Compliance-Score (0–100).
+
+## Quick Links
+
+| Service | URL |
+|---------|-----|
+| GitHub | [MightyDestroyer/governance-audit](https://github.com/MightyDestroyer/governance-audit) |
+| Governance Wiki | [mightydestroyer.github.io/governance](https://mightydestroyer.github.io/governance/) |
+| Governance Repo | [MightyDestroyer/governance](https://github.com/MightyDestroyer/governance) |
 
 ## Installation
 
@@ -16,7 +24,7 @@ go build -o governance-audit .
 ### Via go install
 
 ```bash
-go install github.com/MightyDestroyer/Governance/tools/governance-audit@latest
+go install github.com/MightyDestroyer/governance-audit@latest
 ```
 
 ## Usage

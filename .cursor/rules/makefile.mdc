@@ -1,0 +1,41 @@
+---
+description: Makefile-Standards — Build-Targets und Konventionen fuer MightyDestroyer-Projekte
+globs: "**/Makefile"
+alwaysApply: false
+---
+
+# Makefile Standards
+
+## Pflicht-Targets
+
+Jedes Projekt-Makefile muss mindestens enthalten: `help`, `dev`, `build`, `test`, `lint`, `clean`.
+
+## Konventionen
+
+- `APP_NAME` als konfigurierbare Variable (`APP_NAME ?= app`).
+- `.PHONY` fuer alle Targets deklarieren.
+- `help` als Default-Target — gibt verfuegbare Targets aus.
+- Keine hardcodierten Pfade — Variablen nutzen.
+- Keine Secrets in Makefiles.
+
+## Stack-spezifisch
+
+| Stack | Test-Command | Lint-Command |
+|-------|-------------|-------------|
+| Go | `go test ./... -v -race` | `golangci-lint run` |
+| Python | `pytest` | `ruff check .` |
+| Node | `npm test` | `npm run lint` |
+| Rust | `cargo test` | `cargo clippy` |
+
+## Beispiel
+
+```makefile
+APP_NAME ?= my-service
+.PHONY: help dev build test lint clean
+
+help:
+	@echo "Targets: dev build test lint clean"
+
+build:
+	go build -o bin/$(APP_NAME) ./cmd/server
+```
