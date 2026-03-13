@@ -113,7 +113,7 @@ func runNamingChecks(repoPath string) CategoryResult {
 var namingExcludeDirs = map[string]bool{
 	".git": true, "node_modules": true, "vendor": true,
 	"__pycache__": true, "dist": true, "build": true,
-	".next": true, ".nuxt": true,
+	".next": true, ".nuxt": true, "target": true,
 }
 
 // Uppercase filenames allowed by convention
@@ -123,9 +123,19 @@ var namingExcludeFiles = map[string]bool{
 	"LICENSE.md": true, "Makefile": true, "Taskfile.yml": true,
 	"Dockerfile": true, "Procfile": true, "Gemfile": true,
 	"Rakefile": true, "Vagrantfile": true, "Brewfile": true,
+	"SKILL.md": true, "AGENTS.md": true, "CONTRIBUTING.md": true,
+	"SECURITY.md": true, "CODE_OF_CONDUCT.md": true,
 }
 
 var kebabCaseRegex = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)*$`)
+var goSnakeCaseRegex = regexp.MustCompile(`^[a-z0-9]+(_[a-z0-9]+)*\.go$`)
+
+var snakeCaseLanguages = map[string]bool{
+	".go": true,
+	".py": true,
+	".rs": true,
+	".rb": true,
+}
 
 func checkKebabCase(repoPath string) CheckResult {
 	violations := 0
@@ -139,7 +149,7 @@ func checkKebabCase(repoPath string) CheckResult {
 		name := d.Name()
 
 		if d.IsDir() {
-			if namingExcludeDirs[name] || strings.HasPrefix(name, ".") {
+			if namingExcludeDirs[name] || strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_") {
 				return filepath.SkipDir
 			}
 			if !isKebabCase(name) {
@@ -156,6 +166,18 @@ func checkKebabCase(repoPath string) CheckResult {
 			return nil
 		}
 
+		ext := strings.ToLower(filepath.Ext(name))
+		if snakeCaseLanguages[ext] {
+			if !isLanguageConventionCompliant(name, ext) {
+				violations++
+				if len(examples) < 3 {
+					rel, _ := filepath.Rel(repoPath, path)
+					examples = append(examples, rel)
+				}
+			}
+			return nil
+		}
+
 		if !isKebabCase(name) {
 			violations++
 			if len(examples) < 3 {
@@ -169,7 +191,7 @@ func checkKebabCase(repoPath string) CheckResult {
 	if violations == 0 {
 		return CheckResult{
 			Name: "Kebab-case naming", Passed: true,
-			Message: "All files/dirs follow kebab-case", Category: "Naming",
+			Message: "All files/dirs follow naming conventions", Category: "Naming",
 		}
 	}
 	msg := pluralize(violations, "violation")
@@ -184,6 +206,21 @@ func checkKebabCase(repoPath string) CheckResult {
 
 func isKebabCase(name string) bool {
 	return kebabCaseRegex.MatchString(name)
+}
+
+func isLanguageConventionCompliant(name, ext string) bool {
+	if isKebabCase(name) {
+		return true
+	}
+	switch ext {
+	case ".go":
+		return goSnakeCaseRegex.MatchString(name)
+	case ".py", ".rs", ".rb":
+		base := strings.TrimSuffix(name, ext)
+		snakeRegex := regexp.MustCompile(`^[a-z0-9]+(_[a-z0-9]+)*$`)
+		return snakeRegex.MatchString(base)
+	}
+	return false
 }
 
 func checkNoSpaces(repoPath string) CheckResult {
@@ -531,6 +568,21 @@ func checkContractFiles(repoPath string) CheckResult {
 		}
 	}
 
+	rootContracts := []string{
+		"governance.yaml", "openapi.yaml", "openapi.yml", "openapi.json",
+		"asyncapi.yaml", "asyncapi.yml", "swagger.yaml", "swagger.json",
+	}
+	for _, rc := range rootContracts {
+		path := filepath.Join(repoPath, rc)
+		if _, err := os.Stat(path); err == nil {
+			return CheckResult{
+				Name: "Contract/schema files exist", Passed: true,
+				Message: "Root-level contract found: " + rc,
+				Category: "Contracts",
+			}
+		}
+	}
+
 	return CheckResult{
 		Name: "Contract/schema files exist", Passed: false,
 		Message: "No contracts, API specs, schemas, or SysML models found",
@@ -551,6 +603,14 @@ func runObservabilityChecks(repoPath string) CategoryResult {
 }
 
 func checkHealthEndpoint(repoPath string) CheckResult {
+	if !hasServiceEntrypoint(repoPath) {
+		return CheckResult{
+			Name: "Health endpoint reference", Passed: true,
+			Message: "N/A — no service entrypoint detected (library/standards/CLI repo)",
+			Category: "Observability",
+		}
+	}
+
 	patterns := []string{`/health`, `/ready`, `/healthz`, `/readyz`, `/livez`}
 	found := searchInSourceFiles(repoPath, patterns)
 
@@ -566,8 +626,43 @@ func checkHealthEndpoint(repoPath string) CheckResult {
 	}
 }
 
+func hasServiceEntrypoint(repoPath string) bool {
+	serviceIndicators := []string{
+		"http.ListenAndServe", "http.Serve", "net.Listen",
+		"gin.Default", "echo.New", "fiber.New", "mux.NewRouter",
+		"app.listen", "express()", "fastify(", "createServer",
+		"uvicorn.run", "flask.run", "app.run",
+	}
+
+	cmdDir := filepath.Join(repoPath, "cmd")
+	if info, err := os.Stat(cmdDir); err == nil && info.IsDir() {
+		if searchInSourceFiles(repoPath, serviceIndicators) {
+			return true
+		}
+	}
+
+	servicesDir := filepath.Join(repoPath, "services")
+	if info, err := os.Stat(servicesDir); err == nil && info.IsDir() {
+		return true
+	}
+
+	return searchInSourceFiles(repoPath, serviceIndicators)
+}
+
 func checkLoggingSetup(repoPath string) CheckResult {
-	patterns := []string{`slog`, `structlog`, `createLogger`, `pino`, `winston`, `log/slog`, `logging.getLogger`}
+	if !hasSourceFiles(repoPath) {
+		return CheckResult{
+			Name: "Structured logging setup", Passed: true,
+			Message: "N/A — no source files detected (template/docs repo)",
+			Category: "Observability",
+		}
+	}
+
+	patterns := []string{
+		`slog`, `structlog`, `createLogger`, `pino`, `winston`, `log/slog`,
+		`logging.getLogger`, `logging.basicConfig`, `JSONFormatter`, `logging.Logger`,
+		`console.error`, `console.warn`,
+	}
 	found := searchInSourceFiles(repoPath, patterns)
 
 	if found {
@@ -578,9 +673,31 @@ func checkLoggingSetup(repoPath string) CheckResult {
 	}
 	return CheckResult{
 		Name: "Structured logging setup", Passed: false,
-		Message: "No structured logging framework detected (slog, structlog, pino, winston)",
+		Message: "No structured logging framework detected (slog, structlog, pino, winston, logging)",
 		Category: "Observability",
 	}
+}
+
+func hasSourceFiles(repoPath string) bool {
+	found := false
+	_ = filepath.WalkDir(repoPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil || found {
+			return err
+		}
+		name := d.Name()
+		if d.IsDir() && (namingExcludeDirs[name] || strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")) {
+			return filepath.SkipDir
+		}
+		if d.IsDir() {
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(name))
+		if sourceExtensions[ext] {
+			found = true
+		}
+		return nil
+	})
+	return found
 }
 
 func checkObservabilityConfig(repoPath string) CheckResult {
@@ -612,9 +729,29 @@ func checkObservabilityConfig(repoPath string) CheckResult {
 		}
 	}
 
+	otelSourcePatterns := []string{
+		"opentelemetry", "otel.Setup", "otel.Shutdown",
+		"prometheus.NewRegistry", "prometheus.MustRegister", "promhttp",
+		"client_golang/prometheus", "go.opentelemetry.io/otel",
+	}
+	if searchInSourceFiles(repoPath, otelSourcePatterns) {
+		return CheckResult{
+			Name: "Observability tooling config", Passed: true,
+			Message: "Observability SDK integrated in source code (OTel/Prometheus)", Category: "Observability",
+		}
+	}
+
+	if !hasServiceEntrypoint(repoPath) {
+		return CheckResult{
+			Name: "Observability tooling config", Passed: true,
+			Message: "N/A — no service entrypoint detected (library/CLI/template repo)",
+			Category: "Observability",
+		}
+	}
+
 	return CheckResult{
 		Name: "Observability tooling config", Passed: false,
-		Message: "No observability tooling configuration found (docker-compose, k8s)",
+		Message: "No observability tooling found (docker-compose, k8s, or SDK integration)",
 		Category: "Observability",
 	}
 }

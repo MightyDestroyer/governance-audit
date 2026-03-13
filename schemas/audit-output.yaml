@@ -1,0 +1,54 @@
+name: governance-audit-output
+version: "1.0.0"
+description: JSON output schema for governance-audit CLI
+
+fields:
+  - name: repository
+    type: string
+    description: Path to the audited repository
+
+  - name: governance_version
+    type: string
+    description: Version of governance.yaml used
+
+  - name: timestamp
+    type: string
+    format: RFC3339
+    description: Timestamp of the audit run
+
+  - name: score
+    type: integer
+    range: [0, 100]
+    description: Overall weighted compliance score
+
+  - name: rating
+    type: string
+    enum: [Excellent, Good, "Needs Work"]
+    description: Human-readable rating based on score
+
+  - name: total_checks
+    type: integer
+    description: Total number of checks executed
+
+  - name: categories
+    type: array
+    items:
+      fields:
+        - name: name
+          type: string
+          description: Category name (Structure, Naming, Security, Documentation, Contracts, Observability)
+        - name: weight
+          type: integer
+          description: Weight of this category in the overall score
+        - name: checks
+          type: array
+          items:
+            fields:
+              - name: name
+                type: string
+              - name: passed
+                type: boolean
+              - name: message
+                type: string
+              - name: category
+                type: string
