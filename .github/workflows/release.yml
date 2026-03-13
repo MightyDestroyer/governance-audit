@@ -48,7 +48,7 @@ jobs:
         run: go build -ldflags="-s -w" -o governance-audit-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} .
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: governance-audit-${{ matrix.goos }}-${{ matrix.goarch }}
           path: governance-audit-*
