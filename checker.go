@@ -114,7 +114,7 @@ var namingExcludeDirs = map[string]bool{
 	".git": true, "node_modules": true, "vendor": true,
 	"__pycache__": true, "dist": true, "build": true,
 	".next": true, ".nuxt": true, "target": true,
-	"metrics": true,
+	"metrics": true, "site": true, "_site_src": true,
 }
 
 // Uppercase filenames allowed by convention
