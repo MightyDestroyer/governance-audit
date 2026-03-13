@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 const version = "1.0.0"
@@ -16,6 +17,7 @@ func main() {
 	govPath := flag.String("governance", "", "Path to governance.yaml (auto-detected if empty)")
 	format := flag.String("format", "text", "Output format: text or json")
 	verbose := flag.Bool("verbose", false, "Show detailed output")
+	saveMetrics := flag.Bool("save-metrics", false, "Save JSON report to metrics/ in the audited repo")
 	showVersion := flag.Bool("version", false, "Show version and exit")
 	flag.Parse()
 
@@ -54,16 +56,26 @@ func main() {
 	results := runAllChecks(absRepo, gov)
 	score := calculateScore(results)
 
-	slog.Info("audit complete", "score", score, "total_checks", countChecks(results))
+	totalChecks := countChecks(results)
+	slog.Info("audit complete", "score", score, "total_checks", totalChecks)
+
+	govVersion := ""
+	if gov != nil {
+		govVersion = gov.Version
+	}
 
 	switch *format {
 	case "json":
-		printJSONReport(results, score, absRepo)
+		printJSONReport(results, score, absRepo, govVersion)
 	default:
 		printTextReport(results, score, absRepo, *verbose)
 	}
 
-	if score < 70 {
+	if *saveMetrics {
+		saveMetricsJSON(results, score, absRepo, govVersion)
+	}
+
+	if score < 100 {
 		os.Exit(1)
 	}
 }
@@ -126,13 +138,31 @@ func countChecks(categories []CategoryResult) int {
 	return total
 }
 
-func printJSONReport(categories []CategoryResult, score int, repoPath string) {
+func buildJSONReport(categories []CategoryResult, score int, repoPath, govVersion string) JSONReport {
+	passed := 0
+	total := 0
+	for _, cat := range categories {
+		for _, ch := range cat.Checks {
+			total++
+			if ch.Passed {
+				passed++
+			}
+		}
+	}
+
 	report := JSONReport{
-		Version: version,
-		Repo:    repoPath,
-		Score:   score,
-		Rating:  scoreRating(score),
-		Categories: make([]JSONCategory, 0, len(categories)),
+		Timestamp:         time.Now().UTC().Format(time.RFC3339),
+		Version:           version,
+		GovernanceVersion: govVersion,
+		Repo:              repoPath,
+		RepoName:          filepath.Base(repoPath),
+		Score:             score,
+		MaxScore:          100,
+		Rating:            scoreRating(score),
+		TotalChecks:       total,
+		PassedChecks:      passed,
+		FailedChecks:      total - passed,
+		Categories:        make([]JSONCategory, 0, len(categories)),
 	}
 
 	for _, cat := range categories {
@@ -151,9 +181,41 @@ func printJSONReport(categories []CategoryResult, score int, repoPath string) {
 		report.Categories = append(report.Categories, jc)
 	}
 
+	return report
+}
+
+func printJSONReport(categories []CategoryResult, score int, repoPath, govVersion string) {
+	report := buildJSONReport(categories, score, repoPath, govVersion)
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(report); err != nil {
 		slog.Error("failed to encode JSON report", "error", err)
 	}
+}
+
+func saveMetricsJSON(categories []CategoryResult, score int, repoPath, govVersion string) {
+	metricsDir := filepath.Join(repoPath, "metrics")
+	if err := os.MkdirAll(metricsDir, 0o755); err != nil {
+		slog.Error("failed to create metrics directory", "path", metricsDir, "error", err)
+		return
+	}
+
+	now := time.Now()
+	filename := fmt.Sprintf("audit-%s.json", now.Format("2006-01-02T150405"))
+	outPath := filepath.Join(metricsDir, filename)
+
+	report := buildJSONReport(categories, score, repoPath, govVersion)
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		slog.Error("failed to marshal metrics JSON", "error", err)
+		return
+	}
+
+	if err := os.WriteFile(outPath, data, 0o644); err != nil {
+		slog.Error("failed to write metrics file", "path", outPath, "error", err)
+		return
+	}
+
+	slog.Info("metrics saved", "path", outPath)
+	fmt.Fprintf(os.Stderr, "Metrics saved to %s\n", outPath)
 }

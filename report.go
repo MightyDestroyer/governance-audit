@@ -17,11 +17,18 @@ const (
 )
 
 type JSONReport struct {
-	Version    string         `json:"version"`
-	Repo       string         `json:"repo"`
-	Score      int            `json:"score"`
-	Rating     string         `json:"rating"`
-	Categories []JSONCategory `json:"categories"`
+	Timestamp         string         `json:"timestamp"`
+	Version           string         `json:"version"`
+	GovernanceVersion string         `json:"governance_version"`
+	Repo              string         `json:"repo"`
+	RepoName          string         `json:"repo_name"`
+	Score             int            `json:"score"`
+	MaxScore          int            `json:"max_score"`
+	Rating            string         `json:"rating"`
+	TotalChecks       int            `json:"total_checks"`
+	PassedChecks      int            `json:"passed_checks"`
+	FailedChecks      int            `json:"failed_checks"`
+	Categories        []JSONCategory `json:"categories"`
 }
 
 type JSONCategory struct {
